@@ -11,53 +11,69 @@ New feature possibilities for final:
 
 // Auction Contract
 contract Auction {
-    address payable public beneficiary ;
-    uint256 public minimumBid ;
-    uint256 public maxBid ; // This sets the maxiimum price for an item. If someone bids this amount, they own the item immediately.
+    address payable public beneficiary;
+    uint256 public minimumBid;
+    uint256 public maxBid;
     address public maxBidder;
     bool public auctionEnded;
-    bool public instantBuy; // true if someone bids the max price;
-    constructor ( uint256 _minimumBid , uint256 _maxBid, address payable _beneficiaryAddress ) {
-        minimumBid = _minimumBid ;
+    bool public instantBuy; // True if someone bids the max price
+
+    uint256 public startTime;
+    uint256 public endTime;
+
+    constructor(
+        uint256 _minimumBid, 
+        uint256 _maxBid, 
+        uint256 _duration, 
+        address payable _beneficiaryAddress
+    ) {
+        minimumBid = _minimumBid;
         maxBid = _maxBid;
-        beneficiary = _beneficiaryAddress ;
-        maxBidder = address (0) ;
-        auctionEnded = false ;
+        beneficiary = _beneficiaryAddress;
+        maxBidder = address(0);
+        auctionEnded = false;
+        startTime = block.timestamp;
+        endTime = startTime + _duration; // _duration should be in seconds
     }
 
-    function settleAuction () external {
-        if (instantBuy == false) {
-            require ( msg . sender == beneficiary , " Only beneficiary can settle the auction .");
-        }
-        require (! auctionEnded , " Auction has already ended .") ;
-        auctionEnded = true ;
-        if ( maxBidder != address (0) ) {
-            payable ( beneficiary ). transfer ( minimumBid );
-        }
-    }
-
-     function instantSettle() internal {
+    function settleAuction() external {
+        require(block.timestamp > endTime, "Auction cannot be settled before end time.");
+        require(!instantBuy, "Instant buy occurred, no need for manual settlement.");
+        require(msg.sender == beneficiary, "Only beneficiary can settle the auction.");
+        require(!auctionEnded, "Auction has already ended.");
         auctionEnded = true;
+        if (maxBidder != address(0)) {
+            payable(beneficiary).transfer(minimumBid);
+        }
+    }
+
+    function instantSettle() internal {
+        auctionEnded = true;
+        instantBuy = true;
         maxBidder = msg.sender;
         payable(beneficiary).transfer(msg.value);
     }
 
-    function bid () external payable {
-        require ( msg . sender != maxBidder , " You are already the highest bidder .");
-        require ( msg . value > minimumBid , " Bid amount too low .") ;
-        require (! auctionEnded , " Auction has already ended .") ;
-        require (msg.value <= maxBid, "Bid is more than the instant purchase price!");
+    function bid() external payable {
+        require(block.timestamp >= startTime, "Auction has not started yet.");
+        require(block.timestamp <= endTime, "Auction has ended.");
+        require(msg.sender != maxBidder, "You are already the highest bidder.");
+        require(!auctionEnded, "Auction has already ended.");
+        require(msg.value <= maxBid, "Bid is more than the instant purchase price!");
+        uint256 increment = minimumBid + (minimumBid * 10 / 100); // Calculate 10% increment
+        require(msg.value >= increment, "Bid must be at least 10% higher than the current highest bid.");
+
         if (msg.value == maxBid) {
             instantSettle();
+        } else {
+            if (maxBidder != address(0)) {
+                payable(maxBidder).transfer(minimumBid); // Return the previous highest bid
+            }
+            minimumBid = msg.value;
+            maxBidder = msg.sender;
         }
-        if ( maxBidder != address (0) ) {
-            payable ( maxBidder ).transfer( minimumBid ) ;
-        }
-        minimumBid = msg . value ;
-        maxBidder = msg . sender ;
     }
 }
-
 // AssetFactory Contract
 contract AssetFactory {
     struct DigitalAsset {
@@ -113,12 +129,12 @@ contract MarketPlace is AssetFactory {
     mapping ( uint256 => uint256 ) public auctionToObject ;
     uint256 public auctionNumber ;
 
-    function putForSale ( uint256 _minimumBid , uint256 _maxBid, uint256 assetId ) public {
+    function putForSale ( uint256 _minimumBid , uint256 _maxBid, uint256 _duration, uint256 assetId ) public {
         require(assetId < assetCounter, "Asset does not exist.");
         require(msg.sender == ownerOf(assetId), "You are not the owner.");
         require(ownerToAuctionId[msg.sender] == 0, "Already put an asset for sale.");
 
-        Auction newAuction = new Auction(_minimumBid, _maxBid, payable(msg.sender));
+        Auction newAuction = new Auction(_minimumBid, _maxBid, _duration, payable(msg.sender));
         auctionNumber++;
         ownerToAuctionId[msg.sender] = auctionNumber;
         idToAuction[auctionNumber] = newAuction;

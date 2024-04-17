@@ -4,9 +4,7 @@ pragma solidity ^0.8.20;
 import "./Marketplace.sol";
 
 contract AssetFactoryExposed is AssetFactory {
-    constructor(address _erc721Contract) AssetFactory(_erc721Contract) {}
-    
-    function _ownerOf(uint256 a) internal view returns (address) {
-       return getOwnerOf(a);
+    function _ownerOf(uint256 tokenId) public view returns (address) {
+        return ownerOf(tokenId); // This should work if AssetFactory has getOwnerOf and is a parent
     }
 }

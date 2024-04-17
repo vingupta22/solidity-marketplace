@@ -103,6 +103,12 @@ contract AssetFactory {
     DigitalAsset[] public digitalAssets;
     uint256 public assetCounter;
 
+    // ERC implementation
+    ERC721 public erc721Contract; // Reference to the ERC721 contract
+    constructor(address _erc721Contract) {
+        erc721Contract = ERC721(_erc721Contract);
+    }
+
     function mint(string memory _name) external {
         require(bytes(_name).length < 32, "Name too long.");
         digitalAssets.push(DigitalAsset(_name, msg.sender));
@@ -112,7 +118,8 @@ contract AssetFactory {
     // changed name to getOwnerOf (to prevent it from conflicting with ERC 721 ownerOf)
     function getOwnerOf(uint256 _assetId) public view returns (address) {
         require(_assetId < assetCounter, "Asset ID does not exist.");
-        return digitalAssets[_assetId].owner;
+        // return digitalAssets[_assetId].owner;
+        return erc721Contract.ownerOf(_assetId);
     }
 
     function transferTo(address _to, uint256 _assetId) public {
@@ -151,7 +158,7 @@ contract MarketPlace is AssetFactory, MyToken {
     uint256 public auctionNumber;
 
     // token is initialized with specific initialOwner
-    constructor(address initialOwner) MyToken(initialOwner) {}
+    constructor(address initialOwner, address erc721Contract) AssetFactory(erc721Contract) MyToken(initialOwner) {}
 
     function putForSale(uint256 _minimumBid, uint256 _maxBid, uint256 _duration, uint256 assetId) public {
         require(assetId < assetCounter, "Asset does not exist.");

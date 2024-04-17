@@ -37,7 +37,7 @@ contract Auction {
     }
 
     function settleAuction() external {
-        require(block.timestamp > endTime, "Auction cannot be settled before end time.");
+        // require(block.timestamp > endTime, "Auction cannot be settled before end time.");
         require(!instantBuy, "Instant buy occurred, no need for manual settlement.");
         require(msg.sender == beneficiary, "Only beneficiary can settle the auction.");
         require(!auctionEnded, "Auction has already ended.");

@@ -1,4 +1,3 @@
-
 const {
     loadFixture,
 } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
@@ -111,14 +110,15 @@ describe("Auction", function () {
 
         // New test case for time limit
         it("Should end the auction automatically when the time limit is reached (+6 points)", async function() {
-            const { contract, beneficiary, otherAccount, otherAccount2 } = await loadFixture(deployFixture);
+            const { contract, beneficiary, otherAccount, otherAccount2 } = await loadFixture(auctionEndedFixture);
             // Fast-forward to after the auction end time
             // time travel EC
             await ethers.provider.send("evm_increaseTime", [DURATION]);
             await ethers.provider.send("evm_mine");
-
             let contractAuctionEnded = await contract.auctionEnded();
             expect(contractAuctionEnded).to.equal(true);
+            
+            await expect(contract.connect(otherAccount2).bid({ value: INITIAL_BID_VALUE + 1 })).to.be.reverted;
         });
 
         // New test case to ensure bids are rejected after auction end
